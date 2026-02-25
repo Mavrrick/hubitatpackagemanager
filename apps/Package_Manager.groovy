@@ -9,6 +9,7 @@
  *
  *
  *
+ *    mavrrick 1.9.10   Enhanced file processing to allow for a binary file download when new tag is specified and "binary" is used.
  *    csteele  v1.9.9   UpgradeApp() moved to the Top to remediate HPM crashing during Upgrade of itself due to the methods moving post-upgrade.
  *                         Replaced "Fast Search" algorithm to also use fuzzy, thus eliminating the need for two choices. Delete Azure query.
  *                         Created an external Fast-Track Match Up tool. Default on but Optional. 
@@ -998,16 +999,24 @@ def performInstallation() {
 	}
 
 	for (fileToInstall in manifest.files) {
+        def txType = fileToInstall.tranferType
 		def location = getItemDownloadLocation(fileToInstall)
 		def fileContents = fileManagerFiles[location]
 		setBackgroundStatusMessage("Installing ${location}")
-		if (!installFile(fileToInstall.id, fileToInstall.name, fileContents)) {
-			state.manifests.remove(pkgInstall)
-			return rollback("Failed to install file ${location}. Please notify the package developer.", false)
-		}
-		else
-			completedActions["fileInstalls"] << fileToInstall
-	}
+		if (txType == "binary") {
+                if (!installFileBinary(fileToInstall.id, fileToInstall.name, fileContents)) {
+				    return rollback("Failed to install file ${location}. Please notify the package developer.", false)
+			    } else {
+				    completedActions["fileInstalls"] << fileToInstall
+		        }
+            } else {
+                if (!installFile(fileToInstall.id, fileToInstall.name, fileContents)) {
+				    return rollback("Failed to install file ${location}. Please notify the package developer.", false)
+                } else {
+				    completedActions["fileInstalls"] << fileToInstall
+		        }
+            }
+        }
 
 	atomicState.backgroundActionInProgress = false
 	app.updateSetting("installBeta", false)
@@ -1531,15 +1540,24 @@ def performRepair() {
 		}
 
 		for (fileToInstall in manifest.files) {
+            def txType = fileToInstall.tranferType
 			def location = getItemDownloadLocation(fileToInstall)
 			def fileContents = fileManagerFiles[location]
 			setBackgroundStatusMessage("Installing ${location}")
-			if (!installFile(fileToInstall.id, fileToInstall.name, fileContents)) {
-				return rollback("Failed to install file ${location}. Please notify the package developer.", false)
-			}
-			else
-				completedActions["fileInstalls"] << fileToInstall
-		}
+			if (txType == "binary") {
+                if (!installFileBinary(fileToInstall.id, fileToInstall.name, fileContents)) {
+				    return rollback("Failed to install file ${location}. Please notify the package developer.", false)
+			    } else {
+				    completedActions["fileInstalls"] << fileToInstall
+		        }
+            } else {
+                if (!installFile(fileToInstall.id, fileToInstall.name, fileContents)) {
+				    return rollback("Failed to install file ${location}. Please notify the package developer.", false)
+                } else {
+				    completedActions["fileInstalls"] << fileToInstall
+		        }
+            }
+        }
 
 		if (state.manifests[pkgRepair] != null)
 			copyInstalledItemsToNewManifest(state.manifests[pkgRepair], manifest)
@@ -2393,15 +2411,24 @@ def performUpdates(runInBackground) {
 			}
 
 			for (fileToInstall in manifest.files) {
+                def txType = fileToInstall.tranferType
 				def location = getItemDownloadLocation(fileToInstall)
 				def fileContents = fileManagerFiles[location]
 				setBackgroundStatusMessage("Installing ${location}")
-				if (!installFile(fileToInstall.id, fileToInstall.name, fileContents)) {
-					return rollback("Failed to install file ${location}. Please notify the package developer.", false)
-				}
-				else
-					completedActions["fileInstalls"] << fileToInstall
-			}
+				if (txType == "binary") {
+                if (!installFileBinary(fileToInstall.id, fileToInstall.name, fileContents)) {
+				    return rollback("Failed to install file ${location}. Please notify the package developer.", false)
+			    } else {
+				    completedActions["fileInstalls"] << fileToInstall
+		        }
+            } else {
+                if (!installFile(fileToInstall.id, fileToInstall.name, fileContents)) {
+				    return rollback("Failed to install file ${location}. Please notify the package developer.", false)
+                } else {
+				    completedActions["fileInstalls"] << fileToInstall
+		        }
+            }
+        }
 
 			if (state.manifests[pkg] != null)
 				copyInstalledItemsToNewManifest(state.manifests[pkg], manifest)
@@ -3221,6 +3248,35 @@ def downloadFile(file) {
 	}
 }
 
+def downloadFileBinary(file) {
+    logInfo "In new test routine"
+//    def fileName = file.tokenize('/')[-1]
+	try
+	{
+		def params = [
+			uri: file,
+			requestContentType: "application/octet-stream",
+			contentType: "application/octet-stream",
+			timeout: 300
+		]
+		def result = null
+		httpGet(params) { response ->
+            if (response.status == 200) {
+                // The binary data is in response.data
+                byte[] fileBytes = response.data.getBytes()
+                
+                result = fileBytes
+            }
+        }
+        logInfo "returning result data"
+		return result
+	}
+	catch (e) {
+		logInfo "Skip download of ${file}: ${e} Please notify the package developer."
+		return null
+	}
+}
+
 def downloadFileAsync(String file, String callback, Map data = null) {
 	try
 	{
@@ -3933,6 +3989,56 @@ Content-Disposition: form-data; name="folder"
 	}
 }
 
+def installFileBinary(id, fileName, contents) {
+	if (location.hub.firmwareVersionString >= "2.3.4.134") {
+	    try
+		{
+	      	uploadHubFile("${fileName}",contents)
+            return true
+		}
+		catch (e) {
+			log.error "Error installing file: ${e}"
+		}
+		return false
+	} else {
+	    try
+		{
+			def params = [
+				uri: getBaseUrl(),
+				path: "/hub/fileManager/upload",
+				query: [
+					"folder": "/"
+				],
+				headers: [
+					"Cookie": state.cookie,
+					"Content-Type": "multipart/form-data; boundary=----WebKitFormBoundaryDtoO2QfPwfhTjOuS"
+				],
+				body: """------WebKitFormBoundaryDtoO2QfPwfhTjOuS
+Content-Disposition: form-data; name="uploadFile"; filename="${fileName}"
+Content-Type: text/html
+
+${contents}
+
+------WebKitFormBoundaryDtoO2QfPwfhTjOuS
+Content-Disposition: form-data; name="folder"
+
+
+------WebKitFormBoundaryDtoO2QfPwfhTjOuS--""",
+				timeout: 300,
+				ignoreSSLIssues: true
+			]
+			httpPost(params) { resp ->
+	
+			}
+			return true
+		}
+		catch (e) {
+			log.error "Error installing file: ${e}"
+		}
+		return false
+	}
+}
+
 def uninstallFile(id, fileName) {
 	if (location.hub.firmwareVersionString >= "2.3.4.134") {
 	    try
@@ -4359,14 +4465,25 @@ def minimizeStoredManifests() {
 def downloadFileManagerFiles(manifest) {
 	def files = [:]
 	for (fileToInstall in manifest.files) {
+        def txType = fileToInstall.tranferType
+        logDebug "files to be download are ${fileToInstall}.. Transfer type is ${txType}"
 		def location = getItemDownloadLocation(fileToInstall)
 		setBackgroundStatusMessage("Downloading ${location}")
-		def fileContents = downloadFile(location)
-		if (fileContents == null) {
-			return [sucess:false, name: location]
-		}
+        def fileContents = null
+        if (txType == "binary") {
+            logDebug "Performing Binary file Transfer"
+		    fileContents = downloadFileBinary(location)
+        } else {
+            logDebug "Performing text file Transfer"
+            fileContents = downloadFile(location)
+            if (fileContents == null) {
+			    return [sucess:false, name: location]
+		    }
+        }
+		
 		files[location] = fileContents
 	}
+    logDebug "return to previous process	"
 	return [success:true, files: files]
 }
 
