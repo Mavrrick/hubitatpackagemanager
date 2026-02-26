@@ -1,6 +1,6 @@
 /**
  *
- *  Hubitat Package Manager v1.9.9
+ *  Hubitat Package Manager v1.9.10
  *
  *  Copyright 2020 Dominick Meglio
  *
@@ -9,6 +9,7 @@
  *
  *
  *
+ *    mavrrick 1.9.10   Enhanced file processing to allow for a binary file download when new tag is specified and "binary" is used.
  *    csteele  v1.9.9   UpgradeApp() moved to the Top to remediate HPM crashing during Upgrade of itself due to the methods moving post-upgrade.
  *                         Replaced "Fast Search" algorithm to also use fuzzy, thus eliminating the need for two choices. Delete Azure query.
  *                         Created an external Fast-Track Match Up tool. Default on but Optional. 
