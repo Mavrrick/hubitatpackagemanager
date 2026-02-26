@@ -9,7 +9,6 @@
  *
  *
  *
- *    mavrrick 1.9.10   Enhanced file processing to allow for a binary file download when new tag is specified and "binary" is used.
  *    csteele  v1.9.9   UpgradeApp() moved to the Top to remediate HPM crashing during Upgrade of itself due to the methods moving post-upgrade.
  *                         Replaced "Fast Search" algorithm to also use fuzzy, thus eliminating the need for two choices. Delete Azure query.
  *                         Created an external Fast-Track Match Up tool. Default on but Optional. 
@@ -59,7 +58,7 @@
  *                         added feature to identify Azure search vs sql search
  */
 
-	public static String version()      {  return "v1.9.9"  }
+	public static String version()      {  return "v1.9.10"  }
 	def getThisCopyright(){"&copy; 2020 Dominick Meglio"}
 
 definition(
@@ -999,7 +998,7 @@ def performInstallation() {
 	}
 
 	for (fileToInstall in manifest.files) {
-        def txType = fileToInstall.tranferType
+        def txType = fileToInstall.transferType
 		def location = getItemDownloadLocation(fileToInstall)
 		def fileContents = fileManagerFiles[location]
 		setBackgroundStatusMessage("Installing ${location}")
@@ -1540,7 +1539,7 @@ def performRepair() {
 		}
 
 		for (fileToInstall in manifest.files) {
-            def txType = fileToInstall.tranferType
+            def txType = fileToInstall.transferType
 			def location = getItemDownloadLocation(fileToInstall)
 			def fileContents = fileManagerFiles[location]
 			setBackgroundStatusMessage("Installing ${location}")
@@ -2411,7 +2410,7 @@ def performUpdates(runInBackground) {
 			}
 
 			for (fileToInstall in manifest.files) {
-                def txType = fileToInstall.tranferType
+                def txType = fileToInstall.transferType
 				def location = getItemDownloadLocation(fileToInstall)
 				def fileContents = fileManagerFiles[location]
 				setBackgroundStatusMessage("Installing ${location}")
@@ -4465,7 +4464,7 @@ def minimizeStoredManifests() {
 def downloadFileManagerFiles(manifest) {
 	def files = [:]
 	for (fileToInstall in manifest.files) {
-        def txType = fileToInstall.tranferType
+        def txType = fileToInstall.transferType
         logDebug "files to be download are ${fileToInstall}.. Transfer type is ${txType}"
 		def location = getItemDownloadLocation(fileToInstall)
 		setBackgroundStatusMessage("Downloading ${location}")
